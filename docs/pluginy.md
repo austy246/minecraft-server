@@ -66,6 +66,16 @@ Obyčejné barely fungují normálně — jen Shop Block se chová jako obchod.
 - **Build:** `cd ~/simpleshops && ./build.sh`
 - **Instalace:** `cp target/SimpleShops.jar ~/minecraft-server/plugins/`
 
+## MaceLimiter (vlastní plugin)
+
+Custom plugin (verze 1.0.0) upravující Mace (palici).
+
+- **Bez enchantů:** enchanty existují dál, ale nelze je dát na Mace (kovadlina, enchant stůl). Stávající enchanty se z Mace odstraní (při připojení, otevření inventáře/truhly, sebrání itemu a každé 2 s v inventáři a enderchestu).
+- **Nabíjení 60 s:** po každém zásahu Mace má hráč 60 s cooldown (v ručce se zobrazí overlay), během kterého Mace nezraňuje.
+- **Zdrojový kód:** `maceplugin/` v tomto repozitáři.
+- **Build:** `cd maceplugin && mvn package` (verze Paper API je v `pom.xml` jako `paper.api.version`, nastav podle serveru)
+- **Instalace:** `cp target/MaceLimiter.jar ~/minecraft-server/plugins/` a restart serveru.
+
 ## Simple Voice Chat
 
 Proximity voice chat pro Java hráče (plugin verze 2.6.17, `voicechat-bukkit-2.6.17.jar`). Hráči slyší ostatní podle vzdálenosti ve hře.

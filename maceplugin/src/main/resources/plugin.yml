@@ -1,0 +1,5 @@
+name: MaceLimiter
+version: 1.0.0
+main: cz.minecraft.macelimiter.MaceLimiter
+api-version: "1.21"
+description: Mace bez enchantu a s 60s nabijenim po uderu.
