@@ -91,6 +91,34 @@ Freecam je klientský mod, server ho nepozná. Plugin proto hráčům na povrchu
 
 Pro případné další pluginy stejného typu viz Modrinth: [Phantom](https://modrinth.com/plugin/phantom-antixray), [AntiFreecam](https://modrinth.com/plugin/antifreecam-esp). `AntiFreecam-evolved` je Fabric mod (musel by ho mít každý hráč), pro Paper se nehodí.
 
+## Teams (vlastní plugin: týmy, král, koruna)
+
+Custom plugin (verze 1.0.0). Zdrojový kód: `teamplugin/`. Data: `~/minecraft-server/plugins/Teams/data.yml` (týmy, počty zabití, hlasy, králové, drahokamy), nastavení: `plugins/Teams/config.yml`.
+
+**Týmy:** Trpaslíci, Samuraj, Vodník, Lidoop. `/join team` ukáže týmy a kdo v nich je, `/join team <tým>` tě přidá (do konce měsíce se nedá změnit). Hráč bez týmu se nemůže hýbat ani hrát, dokud si nevybere. 1. dne každého měsíce (čas Europe/Prague) se vše resetuje (týmy, hlasy, králové, koruny).
+
+**Boj:** Členové stejného týmu se nezraní (útok, šípy, TNT, škodlivé lektvary). Lávu a podobné zdroje plugin neřeší. Když tým 3× zabije hráče jiného týmu, ten přejde do něj.
+
+**Král:** `/king` (od 4. dne v měsíci) otevře menu s hlavami členů týmu, klik = hlas (lze změnit). Král je ten s nejvíc hlasy.
+
+**Koruna a drahokamy:** Zvolený král dostane korunu s drahokamem svého týmu (existuje jen jeden na tým). Každý drahokam dává +1 Strength, který se přičítá ke Strength z lektvaru. Zabiješ-li korunovaného hráče jiného týmu, vezmeš mu naposled získaný drahokam (nemáš-li korunu, dostaneš novou). Koruna obětem zůstane. Zabití obyčejného hráče nic nepřesouvá.
+
+**Výhody týmů:**
+
+| Tým | Výhoda |
+| :---- | :---- |
+| Trpaslíci | velikost 0,75 |
+| Vodník | ve vodě Dolphin's Grace a Conduit Power |
+| Lidoop | leze po stěnách jako po žebříku (klientovi se v packetech pošle neviditelná liána; hráč má povolené "létání", aby ho server nevyhodil) |
+| Samuraj | Ctrl (ve stoje, bez W) rozsvítí žluté bloky do 3 bloků, druhý Ctrl teleportuje na blok, na který se díváš, cooldown 60 s, Shift = zrušit |
+
+Klávesu Ctrl (sprint) si hráč může v Možnosti → Ovládání přepsat.
+
+**Resource pack (vzhled koruny):** `resourcepack/` v repozitáři (`teams-pack.zip`). Bez něj hráči vidí místo koruny papír s názvem Koruna. Pack se zapíná v `server.properties` (`resource-pack`, `resource-pack-sha1`).
+
+- **Build:** `cd teamplugin && mvn package` (potřebuje JDK 25, na serveru je jen JRE, proto se staví na PC).
+- **Instalace:** `scp target/Teams.jar austy@<server>:~/minecraft-server/plugins/` a restart serveru.
+
 ## Simple Voice Chat
 
 Proximity voice chat pro Java hráče (plugin verze 2.6.17, `voicechat-bukkit-2.6.17.jar`). Hráči slyší ostatní podle vzdálenosti ve hře.

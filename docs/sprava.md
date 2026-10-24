@@ -15,6 +15,7 @@
 │   │   ├── FPAntiFreeCam-1.5.2.jar
 │   │   ├── packetevents-spigot-2.14.0.jar
 │   │   ├── SimpleShops.jar
+│   │   ├── Teams.jar
 │   │   ├── SkinsRestorer.jar
 │   │   ├── timber-1.8.3.jar
 │   │   ├── voicechat-bukkit-2.6.17.jar

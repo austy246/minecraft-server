@@ -1,0 +1,12 @@
+name: Teams
+version: 1.0.0
+main: cz.minecraft.teams.TeamsPlugin
+api-version: "1.21"
+description: Mesicni tymy, hlasovani o krali, koruna a vyhody tymu.
+commands:
+  join:
+    description: Pripoj se k tymu.
+    usage: /join team <trpaslici|samuraj|vodnik|lidoop>
+  king:
+    description: Hlasuj o kralovi sveho tymu.
+    usage: /king

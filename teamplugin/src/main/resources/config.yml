@@ -1,0 +1,9 @@
+crown:
+  # Pouzit modely koruny z resource packu (teams:crown_<tym>, teams:crown_empty).
+  # Bez packu hrac vidi obycejny papir pojmenovany Koruna.
+  use-item-model: true
+
+samurai:
+  cooldown-seconds: 60
+  # Polomer oblasti kolem hrace, kam se muze teleportovat.
+  radius: 3
