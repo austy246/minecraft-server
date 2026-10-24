@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "teams:item/crown_vodnik"
+    "model": "teams:item/crown_ring_empty"
   }
 }

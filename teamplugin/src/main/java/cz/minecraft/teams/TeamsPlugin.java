@@ -78,6 +78,7 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
     @Override
     public void onDisable() {
         perks.shutdown();
+        crowns.shutdown();
         data.save();
     }
 

@@ -232,8 +232,8 @@ final class TeamListener implements Listener {
             return;
         }
 
-        // koruna: zabijak vezme obeti naposled ziskany drahokam
-        plugin.crowns.transferGem(killer, victim);
+        // koruna se presouva i s drahokamy
+        plugin.crowns.transferCrown(killer, victim);
 
         // 3 zabiti stejnym tymem = obet prebehne
         int count = plugin.data.addKill(victim.getUniqueId(), killerTeam);

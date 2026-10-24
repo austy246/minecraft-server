@@ -200,6 +200,11 @@ final class TeamData {
         return gems.computeIfAbsent(holder, k -> new ArrayList<>());
     }
 
+    /** Odebere hraci korunu i s drahokamy a vrati je. */
+    List<TeamType> removeCrown(UUID holder) {
+        return gems.remove(holder);
+    }
+
     /** Kdo drzi drahokam daneho tymu, nebo null, kdyz ho nikdo nema. */
     UUID gemHolder(TeamType t) {
         for (Map.Entry<UUID, List<TeamType>> e : gems.entrySet()) {

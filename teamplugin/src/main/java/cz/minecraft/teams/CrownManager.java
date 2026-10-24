@@ -1,55 +1,60 @@
 package cz.minecraft.teams;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Tag;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
-import org.bukkit.entity.ItemFrame;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.inventory.ClickType;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EquipmentSlotGroup;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.Transformation;
+import org.joml.AxisAngle4f;
+import org.joml.Vector3f;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * Koruna: jeden predmet na drzitele, ktery ukazuje jeho drahokamy.
+ * Koruna je plovouci model, ktery hraci sedi na hlave nad helmou (ItemDisplay jako pasazer).
+ * Zadny predmet v inventari ani ve slotu helmy neexistuje, takze hrac o helmu neprijde.
  * Kazdy drahokam dava +1 Strength (pricita se k Strength z lektvaru).
- * Drahokam kazdeho tymu existuje ve hre jen jednou.
+ * Drahokam kazdeho tymu existuje ve hre jen jednou a koruna se pri zabiti presouva i s drahokamy.
  */
 final class CrownManager implements Listener {
 
     private static final double STRENGTH_PER_GEM = 3.0;
+    /** Vyska spodku koruny nad pasazerskym bodem hrace (v blocich pri velikosti 1). */
+    private static final float RING_LIFT = 0.41f;
 
     private final TeamsPlugin plugin;
-    private final NamespacedKey crownKey;
+    /** Klic stare verze, kdy byla koruna predmet. Ukliziji se zbytky. */
+    private final NamespacedKey legacyCrownKey;
     private final NamespacedKey strengthKey;
+    private final Map<UUID, Shown> shown = new HashMap<>();
+
+    private record Shown(ItemDisplay display, String signature) {
+    }
 
     CrownManager(TeamsPlugin plugin) {
         this.plugin = plugin;
-        this.crownKey = new NamespacedKey(plugin, "crown");
+        this.legacyCrownKey = new NamespacedKey(plugin, "crown");
         this.strengthKey = new NamespacedKey(plugin, "crown_strength");
     }
 
@@ -57,11 +62,11 @@ final class CrownManager implements Listener {
         plugin.getServer().getScheduler().runTaskTimer(plugin, this::sweep, 20L, 20L);
     }
 
-    // --- predmet ---
-
-    boolean isCrown(ItemStack it) {
-        return it != null && it.getType() == Material.PAPER && it.hasItemMeta()
-                && it.getItemMeta().getPersistentDataContainer().has(crownKey, PersistentDataType.STRING);
+    void shutdown() {
+        for (Shown s : shown.values()) {
+            s.display().remove();
+        }
+        shown.clear();
     }
 
     private static String signature(List<TeamType> gems) {
@@ -75,41 +80,18 @@ final class CrownManager implements Listener {
         return sb.toString();
     }
 
-    ItemStack create(List<TeamType> gems) {
+    private boolean isLegacyCrown(ItemStack it) {
+        return it != null && it.getType() == Material.PAPER && it.hasItemMeta()
+                && it.getItemMeta().getPersistentDataContainer().has(legacyCrownKey, PersistentDataType.STRING);
+    }
+
+    /** Predmet, ktery se zobrazuje na hlave (model v resource packu). */
+    private ItemStack displayItem(List<TeamType> gems) {
         ItemStack it = new ItemStack(Material.PAPER);
         ItemMeta m = it.getItemMeta();
-        m.displayName(Component.text("Koruna", NamedTextColor.GOLD, TextDecoration.BOLD)
-                .decoration(TextDecoration.ITALIC, false));
-        List<Component> lore = new ArrayList<>();
-        if (gems.isEmpty()) {
-            lore.add(Component.text("Bez drahokamu", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-        } else {
-            lore.add(Component.text("Drahokamy (" + gems.size() + "/" + TeamType.values().length + "):",
-                    NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-            for (TeamType t : gems) {
-                lore.add(Component.text("◆ " + t.display, t.color)
-                        .append(Component.text("  +1 Strength", NamedTextColor.GRAY))
-                        .decoration(TextDecoration.ITALIC, false));
-            }
-        }
-        m.lore(lore);
-        m.getPersistentDataContainer().set(crownKey, PersistentDataType.STRING, signature(gems));
-        if (plugin.getConfig().getBoolean("crown.use-item-model", true)) {
-            String model = gems.isEmpty() ? "crown_empty" : "crown_" + gems.get(gems.size() - 1).id;
-            m.setItemModel(new NamespacedKey("teams", model));
-            // Model koruny na hlave hrace (equipment asset v resource packu).
-            EquippableComponent eq = m.getEquippable();
-            eq.setSlot(EquipmentSlot.HEAD);
-            eq.setModel(new NamespacedKey("teams", model));
-            eq.setDamageOnHurt(false);
-            eq.setSwappable(false);
-            m.setEquippable(eq);
-        } else {
-            EquippableComponent eq = m.getEquippable();
-            eq.setSlot(EquipmentSlot.HEAD);
-            eq.setDamageOnHurt(false);
-            m.setEquippable(eq);
-        }
+        m.displayName(Component.text("Koruna", NamedTextColor.GOLD));
+        String model = gems.isEmpty() ? "crown_ring_empty" : "crown_ring_" + gems.get(gems.size() - 1).id;
+        m.setItemModel(new NamespacedKey("teams", model));
         it.setItemMeta(m);
         return it;
     }
@@ -129,23 +111,29 @@ final class CrownManager implements Listener {
         }
     }
 
-    /** Zabijak vezme obeti naposled ziskany drahokam. Obet o korunu neprijde. */
-    void transferGem(Player killer, Player victim) {
+    /**
+     * Zabijak vezme obeti celou korunu i s drahokamy. Koruna se nikdy nekopiruje:
+     * obet o ni prijde, zabijakovi se drahokamy pridaji (nebo dostane korunu novou).
+     */
+    void transferCrown(Player killer, Player victim) {
         List<TeamType> vg = plugin.data.gems(victim.getUniqueId());
         if (vg == null || vg.isEmpty()) {
             return;
         }
-        TeamType gem = vg.remove(vg.size() - 1);
-        plugin.data.gemsOrCreate(killer.getUniqueId()).add(gem);
+        List<TeamType> taken = plugin.data.removeCrown(victim.getUniqueId());
+        plugin.data.gemsOrCreate(killer.getUniqueId()).addAll(taken);
         plugin.data.save();
         sync(victim);
         sync(killer);
+        Component gemNames = Component.empty();
+        for (TeamType gem : taken) {
+            gemNames = gemNames.append(Component.text(" ◆ " + gem.display, gem.color));
+        }
         plugin.getServer().broadcast(Component.text(killer.getName(), NamedTextColor.GOLD)
                 .append(Component.text(" zabil korunovaného hráče ", NamedTextColor.GRAY))
                 .append(Component.text(victim.getName(), NamedTextColor.GOLD))
-                .append(Component.text(" a vzal mu drahokam ", NamedTextColor.GRAY))
-                .append(Component.text("◆ " + gem.display, gem.color))
-                .append(Component.text("!", NamedTextColor.GRAY)));
+                .append(Component.text(" a vzal mu korunu s drahokamy:", NamedTextColor.GRAY))
+                .append(gemNames));
     }
 
     void sweep() {
@@ -154,42 +142,81 @@ final class CrownManager implements Listener {
         }
     }
 
-    /** Zajisti, ze hrac drzi korunu na hlave, pokud je drzitel, jinak zadnou. */
+    /** Zobrazi korunu drziteli, ostatnim ji odebere. Zbytky stare verze (predmet) uklidi. */
     void sync(Player p) {
+        removeLegacyCrowns(p);
         List<TeamType> gems = plugin.data.gems(p.getUniqueId());
-        PlayerInventory inv = p.getInventory();
-        int headIndex = 39;
+        updateStrength(p, gems == null ? 0 : gems.size());
+        if (gems == null || p.isDead()) {
+            removeDisplay(p);
+            return;
+        }
+        ensureDisplay(p, gems);
+    }
 
-        // koruna nikde jinde nez na hlave
+    /** Stara verze davala korunu jako predmet na hlavu a helmu schovala do inventare. Vrati ji zpet. */
+    private void removeLegacyCrowns(Player p) {
+        PlayerInventory inv = p.getInventory();
+        boolean wasOnHead = isLegacyCrown(inv.getHelmet());
         for (int i = 0; i < inv.getSize(); i++) {
-            if (i != headIndex && isCrown(inv.getItem(i))) {
+            if (isLegacyCrown(inv.getItem(i))) {
                 inv.setItem(i, null);
             }
         }
-        if (isCrown(p.getItemOnCursor())) {
+        if (isLegacyCrown(p.getItemOnCursor())) {
             p.setItemOnCursor(null);
         }
-
-        ItemStack head = inv.getHelmet();
-        if (gems == null) {
-            if (isCrown(head)) {
-                inv.setHelmet(null);
-            }
-        } else {
-            String want = signature(gems);
-            String have = isCrown(head)
-                    ? head.getItemMeta().getPersistentDataContainer().get(crownKey, PersistentDataType.STRING)
-                    : null;
-            if (!want.equals(have)) {
-                inv.setHelmet(create(gems));
-                // puvodni helma jde do inventare
-                if (head != null && !isCrown(head)) {
-                    inv.addItem(head).values()
-                            .forEach(left -> p.getWorld().dropItemNaturally(p.getLocation(), left));
+        if (wasOnHead && inv.getHelmet() == null) {
+            for (int i = 0; i < 36; i++) {
+                ItemStack it = inv.getItem(i);
+                if (it != null && Tag.ITEMS_HEAD_ARMOR.isTagged(it.getType())) {
+                    inv.setHelmet(it);
+                    inv.setItem(i, null);
+                    break;
                 }
             }
         }
-        updateStrength(p, gems == null ? 0 : gems.size());
+    }
+
+    private Transformation transformation(Player p) {
+        AttributeInstance scaleAttr = p.getAttribute(Attribute.SCALE);
+        float s = scaleAttr == null ? 1f : (float) scaleAttr.getValue();
+        return new Transformation(new Vector3f(0f, RING_LIFT * s, 0f), new AxisAngle4f(),
+                new Vector3f(s, s, s), new AxisAngle4f());
+    }
+
+    private void ensureDisplay(Player p, List<TeamType> gems) {
+        UUID u = p.getUniqueId();
+        String sig = signature(gems);
+        Shown s = shown.get(u);
+        if (s != null && (!s.display().isValid() || !p.getPassengers().contains(s.display()))) {
+            s.display().remove();
+            shown.remove(u);
+            s = null;
+        }
+        if (s == null) {
+            ItemDisplay d = p.getWorld().spawn(p.getLocation(), ItemDisplay.class, e -> {
+                e.setPersistent(false);
+                e.setItemStack(displayItem(gems));
+                e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+                e.setTransformation(transformation(p));
+            });
+            p.addPassenger(d);
+            shown.put(u, new Shown(d, sig));
+            return;
+        }
+        if (!sig.equals(s.signature())) {
+            s.display().setItemStack(displayItem(gems));
+            shown.put(u, new Shown(s.display(), sig));
+        }
+        s.display().setTransformation(transformation(p));
+    }
+
+    private void removeDisplay(Player p) {
+        Shown s = shown.remove(p.getUniqueId());
+        if (s != null) {
+            s.display().remove();
+        }
     }
 
     private void updateStrength(Player p, int gemCount) {
@@ -217,72 +244,31 @@ final class CrownManager implements Listener {
         }
     }
 
-    // --- koruna nejde zahodit, ulozit ani ukrast ---
+    // --- model se po teleportu, smrti a odhlaseni znovu postavi ---
+
+    @EventHandler
+    public void onTeleport(PlayerTeleportEvent e) {
+        Player p = e.getPlayer();
+        removeDisplay(p);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (p.isOnline()) {
+                sync(p);
+            }
+        }, 2L);
+    }
+
+    @EventHandler
+    public void onWorld(PlayerChangedWorldEvent e) {
+        removeDisplay(e.getPlayer());
+    }
 
     @EventHandler
     public void onDeath(PlayerDeathEvent e) {
-        e.getDrops().removeIf(this::isCrown);
+        removeDisplay(e.getEntity());
     }
 
     @EventHandler
-    public void onDrop(PlayerDropItemEvent e) {
-        if (isCrown(e.getItemDrop().getItemStack())) {
-            e.setCancelled(true);
-        }
-    }
-
-    @EventHandler
-    public void onFrame(PlayerInteractEntityEvent e) {
-        if (e.getRightClicked() instanceof ItemFrame || e.getRightClicked() instanceof ArmorStand) {
-            Player p = e.getPlayer();
-            if (isCrown(p.getInventory().getItemInMainHand()) || isCrown(p.getInventory().getItemInOffHand())) {
-                e.setCancelled(true);
-            }
-        }
-    }
-
-    @EventHandler
-    public void onClick(InventoryClickEvent e) {
-        if (isCrown(e.getCurrentItem()) && e.getSlotType() == InventoryType.SlotType.ARMOR) {
-            e.setCancelled(true);
-            return;
-        }
-        Inventory top = e.getView().getTopInventory();
-        if (top.getType() == InventoryType.CRAFTING) {
-            return;
-        }
-        boolean inTop = e.getClickedInventory() == top;
-        if (inTop && isCrown(e.getCursor())) {
-            e.setCancelled(true);
-            return;
-        }
-        if (e.isShiftClick() && !inTop && isCrown(e.getCurrentItem())) {
-            e.setCancelled(true);
-            return;
-        }
-        if (inTop && e.getClick() == ClickType.NUMBER_KEY
-                && isCrown(e.getWhoClicked().getInventory().getItem(e.getHotbarButton()))) {
-            e.setCancelled(true);
-            return;
-        }
-        if (inTop && e.getClick() == ClickType.SWAP_OFFHAND
-                && isCrown(e.getWhoClicked().getInventory().getItemInOffHand())) {
-            e.setCancelled(true);
-        }
-    }
-
-    @EventHandler
-    public void onDrag(InventoryDragEvent e) {
-        Inventory top = e.getView().getTopInventory();
-        if (top.getType() == InventoryType.CRAFTING || !isCrown(e.getOldCursor())) {
-            return;
-        }
-        int topSize = top.getSize();
-        for (int slot : e.getRawSlots()) {
-            if (slot < topSize) {
-                e.setCancelled(true);
-                return;
-            }
-        }
+    public void onQuit(PlayerQuitEvent e) {
+        removeDisplay(e.getPlayer());
     }
 }
