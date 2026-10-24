@@ -101,7 +101,7 @@ Custom plugin (verze 1.0.0). Zdrojový kód: `teamplugin/`. Data: `~/minecraft-s
 
 **Král:** `/king` (od 4. dne v měsíci) otevře menu s hlavami členů týmu, klik = hlas (lze změnit). Král je ten s nejvíc hlasy.
 
-**Koruna a drahokamy:** Zvolený král dostane korunu s drahokamem svého týmu (existuje jen jeden na tým). Každý drahokam dává +1 Strength, který se přičítá ke Strength z lektvaru. Zabiješ-li korunovaného hráče jiného týmu, vezmeš mu naposled získaný drahokam (nemáš-li korunu, dostaneš novou). Koruna obětem zůstane. Zabití obyčejného hráče nic nepřesouvá.
+**Koruna a drahokamy:** Koruna se vždy nasadí na hlavu (do slotu helmy, původní helma jde do inventáře) a nejde sundat. Zvolený král dostane korunu s drahokamem svého týmu (existuje jen jeden na tým). Každý drahokam dává +1 Strength, který se přičítá ke Strength z lektvaru. Zabiješ-li korunovaného hráče jiného týmu, vezmeš mu naposled získaný drahokam (nemáš-li korunu, dostaneš novou). Koruna obětem zůstane. Zabití obyčejného hráče nic nepřesouvá.
 
 **Výhody týmů:**
 

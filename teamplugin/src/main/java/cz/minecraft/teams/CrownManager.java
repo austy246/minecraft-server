@@ -21,11 +21,13 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
@@ -95,6 +97,18 @@ final class CrownManager implements Listener {
         if (plugin.getConfig().getBoolean("crown.use-item-model", true)) {
             String model = gems.isEmpty() ? "crown_empty" : "crown_" + gems.get(gems.size() - 1).id;
             m.setItemModel(new NamespacedKey("teams", model));
+            // Model koruny na hlave hrace (equipment asset v resource packu).
+            EquippableComponent eq = m.getEquippable();
+            eq.setSlot(EquipmentSlot.HEAD);
+            eq.setModel(new NamespacedKey("teams", model));
+            eq.setDamageOnHurt(false);
+            eq.setSwappable(false);
+            m.setEquippable(eq);
+        } else {
+            EquippableComponent eq = m.getEquippable();
+            eq.setSlot(EquipmentSlot.HEAD);
+            eq.setDamageOnHurt(false);
+            m.setEquippable(eq);
         }
         it.setItemMeta(m);
         return it;
@@ -140,38 +154,40 @@ final class CrownManager implements Listener {
         }
     }
 
-    /** Zajisti, ze hrac ma presne jednu spravnou korunu, pokud je drzitel, jinak zadnou. */
+    /** Zajisti, ze hrac drzi korunu na hlave, pokud je drzitel, jinak zadnou. */
     void sync(Player p) {
         List<TeamType> gems = plugin.data.gems(p.getUniqueId());
         PlayerInventory inv = p.getInventory();
-        String want = gems == null ? null : signature(gems);
-        boolean found = false;
+        int headIndex = 39;
+
+        // koruna nikde jinde nez na hlave
         for (int i = 0; i < inv.getSize(); i++) {
-            ItemStack it = inv.getItem(i);
-            if (!isCrown(it)) {
-                continue;
-            }
-            if (gems == null || found) {
+            if (i != headIndex && isCrown(inv.getItem(i))) {
                 inv.setItem(i, null);
-                continue;
             }
-            found = true;
-            String have = it.getItemMeta().getPersistentDataContainer().get(crownKey, PersistentDataType.STRING);
+        }
+        if (isCrown(p.getItemOnCursor())) {
+            p.setItemOnCursor(null);
+        }
+
+        ItemStack head = inv.getHelmet();
+        if (gems == null) {
+            if (isCrown(head)) {
+                inv.setHelmet(null);
+            }
+        } else {
+            String want = signature(gems);
+            String have = isCrown(head)
+                    ? head.getItemMeta().getPersistentDataContainer().get(crownKey, PersistentDataType.STRING)
+                    : null;
             if (!want.equals(have)) {
-                inv.setItem(i, create(gems));
+                inv.setHelmet(create(gems));
+                // puvodni helma jde do inventare
+                if (head != null && !isCrown(head)) {
+                    inv.addItem(head).values()
+                            .forEach(left -> p.getWorld().dropItemNaturally(p.getLocation(), left));
+                }
             }
-        }
-        ItemStack cursor = p.getItemOnCursor();
-        if (isCrown(cursor)) {
-            if (gems == null || found) {
-                p.setItemOnCursor(null);
-            } else {
-                found = true;
-            }
-        }
-        if (gems != null && !found) {
-            inv.addItem(create(gems)).values()
-                    .forEach(left -> p.getWorld().dropItemNaturally(p.getLocation(), left));
         }
         updateStrength(p, gems == null ? 0 : gems.size());
     }
@@ -227,6 +243,10 @@ final class CrownManager implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent e) {
+        if (isCrown(e.getCurrentItem()) && e.getSlotType() == InventoryType.SlotType.ARMOR) {
+            e.setCancelled(true);
+            return;
+        }
         Inventory top = e.getView().getTopInventory();
         if (top.getType() == InventoryType.CRAFTING) {
             return;
