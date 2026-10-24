@@ -12,6 +12,8 @@
 │   ├── healthcheck.sh               # nepoužívá se (viz crontab)
 │   ├── paper-old.jar                # předchozí verze Paperu
 │   ├── plugins/
+│   │   ├── FPAntiFreeCam-1.5.2.jar
+│   │   ├── packetevents-spigot-2.14.0.jar
 │   │   ├── SimpleShops.jar
 │   │   ├── SkinsRestorer.jar
 │   │   ├── timber-1.8.3.jar
