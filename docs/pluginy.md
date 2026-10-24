@@ -101,7 +101,9 @@ Custom plugin (verze 1.0.0). Zdrojový kód: `teamplugin/`. Data: `~/minecraft-s
 
 **Král:** `/king` (od 4. dne v měsíci) otevře menu s hlavami členů týmu, klik = hlas (lze změnit). Král je ten s nejvíc hlasy.
 
-**Koruna a drahokamy:** Zvolený král dostane korunu s drahokamem svého týmu (existuje jen jeden na tým). Koruna není předmět, ale plovoucí model, který hráči sedí na hlavě nad helmou, takže o helmu nepřijde. Každý drahokam dává +1 Strength, který se přičítá ke Strength z lektvaru. Zabiješ-li hráče jiného týmu, který má na koruně aspoň jeden drahokam, **vezmeš mu korunu i s drahokamy**. Nemáš-li korunu, dostaneš jeho, jinak se drahokamy přičtou k tvé. Oběť o korunu přijde, takže koruna nejde duplikovat. Zabití hráče bez drahokamu nic nepřesouvá.
+**Koruna a drahokamy:** Zvolený král dostane korunu s drahokamem svého týmu (existuje jen jeden na tým). Koruna není předmět, ale plovoucí model, který hráči sedí na hlavě nad helmou, takže o helmu nepřijde. Každý drahokam dává +1 Strength, který se přičítá ke Strength z lektvaru. Když krále někdo přehlasuje, koruna (i s drahokamy) přejde na nového krále. Zabiješ-li hráče jiného týmu, který má na koruně **jeden** drahokam, vezmeš mu korunu i s drahokamem. Má-li **víc** drahokamů, vypadne mu jen nejnovější (jako předmět) a koruna mu zůstane. Zabití hráče bez drahokamu nic nepřesouvá. Koruna se nikdy nekopíruje.
+
+**Drahokam jako předmět:** `/drahokam [tým]` (alias `/gem`) sundá drahokam z koruny do inventáře (bez argumentu ten nejnovější). Předmět jde dát jinému hráči nebo ho nechat ležet (nezmizí). Pravý klik s ním v ruce ho nasadí na tvoji korunu (nemáš-li ji, vznikne). Po měsíčním resetu přestanou předměty platit.
 
 **Výhody týmů:**
 

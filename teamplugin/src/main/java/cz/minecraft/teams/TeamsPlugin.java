@@ -63,6 +63,8 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
         getCommand("join").setExecutor(this);
         getCommand("join").setTabCompleter(this);
         getCommand("king").setExecutor(this);
+        getCommand("drahokam").setExecutor(this);
+        getCommand("drahokam").setTabCompleter(this);
 
         checkPeriod();
         for (Player p : getServer().getOnlinePlayers()) {
@@ -251,9 +253,14 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
         if (Objects.equals(newKing, data.king(t))) {
             return;
         }
+        UUID oldKing = data.king(t);
         data.setKing(t, newKing);
         if (newKing != null) {
-            crowns.grantKingCrown(newKing, t);
+            if (oldKing != null && !oldKing.equals(newKing) && data.hasCrown(oldKing)) {
+                crowns.moveCrown(oldKing, newKing);
+            } else {
+                crowns.grantKingCrown(newKing, t);
+            }
             Component msg = Component.text("👑 ", NamedTextColor.GOLD)
                     .append(Component.text(nameOf(newKing), t.color))
                     .append(Component.text(" je novým králem týmu ", NamedTextColor.GOLD))
@@ -274,6 +281,10 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
         }
         if (cmd.getName().equals("king")) {
             openKing(p);
+            return true;
+        }
+        if (cmd.getName().equals("drahokam")) {
+            crowns.detachGem(p, args.length > 0 ? args[0] : null);
             return true;
         }
         if (args.length == 0 || !args[0].equalsIgnoreCase("team")) {
@@ -322,6 +333,16 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String alias,
                                       @NotNull String[] args) {
         List<String> out = new ArrayList<>();
+        if (cmd.getName().equals("drahokam")) {
+            if (args.length == 1 && sender instanceof Player p) {
+                List<TeamType> mine = data.gems(p.getUniqueId());
+                if (mine != null) {
+                    mine.forEach(t -> out.add(t.id));
+                }
+                out.removeIf(x -> !x.startsWith(args[0].toLowerCase(Locale.ROOT)));
+            }
+            return out;
+        }
         if (!cmd.getName().equals("join")) {
             return out;
         }

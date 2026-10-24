@@ -27,6 +27,8 @@ final class TeamData {
     private final Map<TeamType, UUID> kings = new EnumMap<>(TeamType.class);
     /** drzitel koruny -> drahokamy v poradi ziskani (posledni = nejnovejsi) */
     private final Map<UUID, List<TeamType>> gems = new HashMap<>();
+    /** drahokamy, ktere existuji jako predmet (tym -> token platneho predmetu) */
+    private final Map<TeamType, UUID> loose = new EnumMap<>(TeamType.class);
 
     TeamData(File file) {
         this.file = file;
@@ -86,6 +88,15 @@ final class TeamData {
                 }
             }
         }
+        s = y.getConfigurationSection("loose");
+        if (s != null) {
+            for (String k : s.getKeys(false)) {
+                TeamType t = TeamType.parse(k);
+                if (t != null) {
+                    loose.put(t, UUID.fromString(s.getString(k)));
+                }
+            }
+        }
         s = y.getConfigurationSection("gems");
         if (s != null) {
             for (String k : s.getKeys(false)) {
@@ -109,6 +120,7 @@ final class TeamData {
         kills.forEach((u, m) -> m.forEach((t, c) -> y.set("kills." + u + "." + t.id, c)));
         votes.forEach((a, b) -> y.set("votes." + a, b.toString()));
         kings.forEach((t, u) -> y.set("kings." + t.id, u.toString()));
+        loose.forEach((t, u) -> y.set("loose." + t.id, u.toString()));
         gems.forEach((u, list) -> y.set("gems." + u, list.stream().map(t -> t.id).toList()));
         try {
             y.save(file);
@@ -205,6 +217,18 @@ final class TeamData {
         return gems.remove(holder);
     }
 
+    UUID looseToken(TeamType t) {
+        return loose.get(t);
+    }
+
+    void setLoose(TeamType t, UUID token) {
+        loose.put(t, token);
+    }
+
+    void clearLoose(TeamType t) {
+        loose.remove(t);
+    }
+
     /** Kdo drzi drahokam daneho tymu, nebo null, kdyz ho nikdo nema. */
     UUID gemHolder(TeamType t) {
         for (Map.Entry<UUID, List<TeamType>> e : gems.entrySet()) {
@@ -226,5 +250,6 @@ final class TeamData {
         votes.clear();
         kings.clear();
         gems.clear();
+        loose.clear();
     }
 }

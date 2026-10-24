@@ -10,3 +10,7 @@ commands:
   king:
     description: Hlasuj o kralovi sveho tymu.
     usage: /king
+  drahokam:
+    description: Sundej drahokam z koruny do inventare.
+    usage: /drahokam [tym]
+    aliases: [gem]
