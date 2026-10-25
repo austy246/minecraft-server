@@ -1,0 +1,41 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "cases": [
+      {
+        "when": "gem_vodnik",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/gem_vodnik"
+        }
+      },
+      {
+        "when": "gem_samuraj",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/gem_samuraj"
+        }
+      },
+      {
+        "when": "gem_trpaslici",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/gem_trpaslici"
+        }
+      },
+      {
+        "when": "gem_lidoop",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/gem_lidoop"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/echo_shard"
+    }
+  }
+}

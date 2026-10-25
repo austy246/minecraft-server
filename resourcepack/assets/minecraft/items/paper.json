@@ -1,0 +1,48 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "cases": [
+      {
+        "when": "crown_ring_vodnik",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/crown_ring_vodnik"
+        }
+      },
+      {
+        "when": "crown_ring_samuraj",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/crown_ring_samuraj"
+        }
+      },
+      {
+        "when": "crown_ring_trpaslici",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/crown_ring_trpaslici"
+        }
+      },
+      {
+        "when": "crown_ring_lidoop",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/crown_ring_lidoop"
+        }
+      },
+      {
+        "when": "crown_ring_empty",
+        "model": {
+          "type": "minecraft:model",
+          "model": "teams:item/crown_ring_empty"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/paper"
+    }
+  }
+}

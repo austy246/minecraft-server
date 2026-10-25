@@ -22,11 +22,13 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.CustomModelDataComponent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
@@ -36,8 +38,10 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -56,6 +60,8 @@ final class CrownManager implements Listener {
     private final NamespacedKey strengthKey;
     private final NamespacedKey gemKey;
     private final Map<UUID, Shown> shown = new HashMap<>();
+    /** Hraci, kteri maji nacteny resource pack (ostatni by videli chybejici model). */
+    private final Set<UUID> packLoaded = new HashSet<>();
 
     private record Shown(ItemDisplay display, String signature) {
     }
@@ -95,13 +101,22 @@ final class CrownManager implements Listener {
                 && it.getItemMeta().getPersistentDataContainer().has(legacyCrownKey, PersistentDataType.STRING);
     }
 
+    /** Vzhled z resource packu pres custom_model_data; bez packu zustane vanilla predmet. */
+    private void setModel(ItemMeta m, String name) {
+        if (!plugin.getConfig().getBoolean("crown.use-item-model", true)) {
+            return;
+        }
+        CustomModelDataComponent c = m.getCustomModelDataComponent();
+        c.setStrings(List.of(name));
+        m.setCustomModelDataComponent(c);
+    }
+
     /** Predmet, ktery se zobrazuje na hlave (model v resource packu). */
     private ItemStack displayItem(List<TeamType> gems) {
         ItemStack it = new ItemStack(Material.PAPER);
         ItemMeta m = it.getItemMeta();
         m.displayName(Component.text("Koruna", NamedTextColor.GOLD));
-        String model = gems.isEmpty() ? "crown_ring_empty" : "crown_ring_" + gems.get(gems.size() - 1).id;
-        m.setItemModel(new NamespacedKey("teams", model));
+        setModel(m, gems.isEmpty() ? "crown_ring_empty" : "crown_ring_" + gems.get(gems.size() - 1).id);
         it.setItemMeta(m);
         return it;
     }
@@ -179,9 +194,7 @@ final class CrownManager implements Listener {
                         .decoration(TextDecoration.ITALIC, false)));
         m.setMaxStackSize(1);
         m.getPersistentDataContainer().set(gemKey, PersistentDataType.STRING, t.id + ":" + token);
-        if (plugin.getConfig().getBoolean("crown.use-item-model", true)) {
-            m.setItemModel(new NamespacedKey("teams", "gem_" + t.id));
-        }
+        setModel(m, "gem_" + t.id);
         it.setItemMeta(m);
         return it;
     }
@@ -311,6 +324,35 @@ final class CrownManager implements Listener {
         for (Player p : plugin.getServer().getOnlinePlayers()) {
             sync(p);
         }
+        updateVisibility();
+    }
+
+    /** Korunu vidi jen ostatni hraci s nactenym packem. Majitel ji z prvni osoby nevidi. */
+    private void updateVisibility() {
+        for (Map.Entry<UUID, Shown> en : shown.entrySet()) {
+            ItemDisplay d = en.getValue().display();
+            for (Player viewer : plugin.getServer().getOnlinePlayers()) {
+                boolean want = !viewer.getUniqueId().equals(en.getKey()) && packLoaded.contains(viewer.getUniqueId());
+                if (viewer.canSee(d) != want) {
+                    if (want) {
+                        viewer.showEntity(plugin, d);
+                    } else {
+                        viewer.hideEntity(plugin, d);
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPackStatus(PlayerResourcePackStatusEvent e) {
+        if (e.getStatus() == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
+            packLoaded.add(e.getPlayer().getUniqueId());
+        } else if (e.getStatus() != PlayerResourcePackStatusEvent.Status.ACCEPTED
+                && e.getStatus() != PlayerResourcePackStatusEvent.Status.DOWNLOADED) {
+            packLoaded.remove(e.getPlayer().getUniqueId());
+        }
+        updateVisibility();
     }
 
     /** Zobrazi korunu drziteli, ostatnim ji odebere. Zbytky stare verze (predmet) uklidi. */
@@ -390,9 +432,8 @@ final class CrownManager implements Listener {
                 e.setBrightness(new Display.Brightness(15, 15));
                 e.setTeleportDuration(1);
             });
-            // majitel svoji korunu z prvni osoby nevidi
-            p.hideEntity(plugin, d);
             shown.put(u, new Shown(d, sig));
+            updateVisibility();
             return;
         }
         if (!sig.equals(s.signature())) {
@@ -470,6 +511,7 @@ final class CrownManager implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
+        packLoaded.remove(e.getPlayer().getUniqueId());
         removeDisplay(e.getPlayer());
     }
 }
