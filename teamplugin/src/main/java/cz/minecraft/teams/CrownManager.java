@@ -388,6 +388,7 @@ final class CrownManager implements Listener {
     /** Zobrazi korunu drziteli, ostatnim ji odebere. Zbytky stare verze (predmet) uklidi. */
     void sync(Player p) {
         removeLegacyCrowns(p);
+        restoreHelmet(p);
         removeInvalidGems(p);
         List<TeamType> gems = plugin.data.gems(p.getUniqueId());
         updateStrength(p, gems == null ? 0 : gems.size());
@@ -419,6 +420,58 @@ final class CrownManager implements Listener {
                     break;
                 }
             }
+        }
+    }
+
+    /** Poradi helem: vyssi cislo = lepsi. */
+    private static int helmetRank(Material m) {
+        String n = m.name();
+        if (n.startsWith("NETHERITE")) {
+            return 6;
+        } else if (n.startsWith("DIAMOND")) {
+            return 5;
+        } else if (n.startsWith("IRON")) {
+            return 4;
+        } else if (n.startsWith("CHAINMAIL")) {
+            return 3;
+        } else if (n.startsWith("GOLDEN")) {
+            return 2;
+        } else if (n.startsWith("TURTLE")) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /** Jednorazove: helma, kterou stara verze koruny schovala do inventare, se vrati na hlavu. */
+    private void restoreHelmet(Player p) {
+        if (!plugin.data.needsHelmetFix(p.getUniqueId())) {
+            return;
+        }
+        PlayerInventory inv = p.getInventory();
+        plugin.data.clearHelmetFix(p.getUniqueId());
+        plugin.data.save();
+        ItemStack head = inv.getHelmet();
+        if (head != null && !isLegacyCrown(head)) {
+            return;
+        }
+        int best = -1;
+        int bestRank = -1;
+        for (int i = 0; i < 36; i++) {
+            ItemStack it = inv.getItem(i);
+            if (it == null || !Tag.ITEMS_HEAD_ARMOR.isTagged(it.getType()) || isGemItem(it)) {
+                continue;
+            }
+            int rank = helmetRank(it.getType()) * 2 + (it.getEnchantments().isEmpty() ? 0 : 1);
+            if (rank > bestRank) {
+                bestRank = rank;
+                best = i;
+            }
+        }
+        if (best >= 0) {
+            inv.setHelmet(inv.getItem(best));
+            inv.setItem(best, null);
+            p.sendMessage(Component.text("Vrátili jsme ti helmu, kterou ti vzala stará verze koruny.",
+                    NamedTextColor.GREEN));
         }
     }
 
