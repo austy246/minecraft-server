@@ -2,6 +2,9 @@ crown:
   # Pouzit modely koruny z resource packu (teams:crown_<tym>, teams:crown_empty).
   # Bez packu hrac vidi obycejny papir pojmenovany Koruna.
   use-item-model: true
+  # Koruna se ukaze vsem krome majitele. Pack nabizi server pri pripojeni (server.properties),
+  # plugin o jeho nacteni nedostava zpravu. Kdo pack nema, vidi misto koruny papir.
+  show-to-all: true
 
 samurai:
   cooldown-seconds: 60
@@ -9,7 +12,7 @@ samurai:
   radius: 3
 
 pack:
-  # Resource pack s korunami a drahokamy. Plugin ho posila hracum po pripojeni.
+  # Resource pack pro prikaz /pack (znovu nabidne pack). Pri pripojeni ho nabizi server.properties.
   # Pri zmene packu zmen url (odkaz na konkretni commit) i sha1.
   url: "https://raw.githubusercontent.com/austy246/minecraft-server/96848e75db7e2d39a12946200ceb3b8c98820066/resourcepack/teams-pack.zip"
   sha1: "4a7bd040462c8a98a033527cb1fe19246df72a02"

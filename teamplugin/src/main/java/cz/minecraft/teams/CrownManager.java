@@ -21,7 +21,6 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -78,9 +77,6 @@ final class CrownManager implements Listener {
     void start() {
         plugin.getServer().getScheduler().runTaskTimer(plugin, this::sweep, 20L, 20L);
         plugin.getServer().getScheduler().runTaskTimer(plugin, this::follow, 1L, 1L);
-        for (Player p : plugin.getServer().getOnlinePlayers()) {
-            sendPack(p);
-        }
     }
 
     void shutdown() {
@@ -332,12 +328,14 @@ final class CrownManager implements Listener {
         updateVisibility();
     }
 
-    /** Korunu vidi jen ostatni hraci s nactenym packem. Majitel ji z prvni osoby nevidi. */
+    /** Korunu vidi vsichni krome majitele (crown.show-to-all), jinak jen hraci s nactenym packem. */
     private void updateVisibility() {
+        boolean showToAll = plugin.getConfig().getBoolean("crown.show-to-all", true);
         for (Map.Entry<UUID, Shown> en : shown.entrySet()) {
             ItemDisplay d = en.getValue().display();
             for (Player viewer : plugin.getServer().getOnlinePlayers()) {
-                boolean want = !viewer.getUniqueId().equals(en.getKey()) && packLoaded.contains(viewer.getUniqueId());
+                boolean want = !viewer.getUniqueId().equals(en.getKey())
+                        && (showToAll || packLoaded.contains(viewer.getUniqueId()));
                 if (viewer.canSee(d) != want) {
                     if (want) {
                         viewer.showEntity(plugin, d);
@@ -362,16 +360,6 @@ final class CrownManager implements Listener {
         byte[] hash = HexFormat.of().parseHex(sha);
         p.setResourcePack(UUID.nameUUIDFromBytes(hash), url, hash,
                 Component.text("Koruny a drahokamy týmů"), false);
-    }
-
-    @EventHandler
-    public void onJoin(PlayerJoinEvent e) {
-        Player p = e.getPlayer();
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (p.isOnline()) {
-                sendPack(p);
-            }
-        }, 20L);
     }
 
     @EventHandler
