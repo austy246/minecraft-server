@@ -14,3 +14,6 @@ commands:
     description: Sundej drahokam z koruny do inventare.
     usage: /drahokam [tym]
     aliases: [gem]
+  pack:
+    description: Znovu nabidne resource pack s korunami.
+    usage: /pack

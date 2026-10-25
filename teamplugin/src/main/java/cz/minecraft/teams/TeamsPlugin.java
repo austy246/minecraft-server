@@ -64,6 +64,7 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
         getCommand("join").setTabCompleter(this);
         getCommand("king").setExecutor(this);
         getCommand("drahokam").setExecutor(this);
+        getCommand("pack").setExecutor(this);
         getCommand("drahokam").setTabCompleter(this);
 
         checkPeriod();
@@ -312,6 +313,11 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
         }
         if (cmd.getName().equals("king")) {
             openKing(p);
+            return true;
+        }
+        if (cmd.getName().equals("pack")) {
+            crowns.sendPack(p);
+            p.sendMessage(Component.text("Resource pack ti byl znovu nabídnut.", NamedTextColor.GRAY));
             return true;
         }
         if (cmd.getName().equals("drahokam")) {

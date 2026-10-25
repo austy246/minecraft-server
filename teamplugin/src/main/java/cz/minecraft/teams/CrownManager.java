@@ -353,7 +353,7 @@ final class CrownManager implements Listener {
      * Pack posilame ze hry (ne pri pripojeni), protoze jen tak Paper spolehlive hlasi stav
      * nacteni. Podle nej se koruna ukazuje jen hracum, ktere ji videt umeji.
      */
-    private void sendPack(Player p) {
+    void sendPack(Player p) {
         String url = plugin.getConfig().getString("pack.url", "");
         String sha = plugin.getConfig().getString("pack.sha1", "");
         if (url.isBlank() || sha.length() != 40) {
@@ -376,6 +376,12 @@ final class CrownManager implements Listener {
 
     @EventHandler
     public void onPackStatus(PlayerResourcePackStatusEvent e) {
+        plugin.getLogger().info("Resource pack: " + e.getPlayer().getName() + " -> " + e.getStatus());
+        if (e.getStatus() == PlayerResourcePackStatusEvent.Status.DECLINED) {
+            e.getPlayer().sendMessage(Component.text("Resource pack s korunami jsi odmítl, korunu proto neuvidíš. "
+                    + "Zapneš ho v Multiplayer → vyber server → Upravit → Server Resource Packs: Enabled. "
+                    + "Potom napiš /pack.", NamedTextColor.YELLOW));
+        }
         if (e.getStatus() == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
             packLoaded.add(e.getPlayer().getUniqueId());
         } else if (e.getStatus() != PlayerResourcePackStatusEvent.Status.ACCEPTED
