@@ -7,6 +7,8 @@ import org.bukkit.Tag;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.Location;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -39,7 +41,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Koruna je plovouci model, ktery hraci sedi na hlave nad helmou (ItemDisplay jako pasazer).
+ * Koruna je plovouci model nad helmou hrace (ItemDisplay, kazdy tick prenaseny na hlavu).
+ * Majitel ji z prvni osoby nevidi.
  * Zadny predmet v inventari ani ve slotu helmy neexistuje, takze hrac o helmu neprijde.
  * Kazdy drahokam dava +1 Strength (pricita se k Strength z lektvaru).
  * Drahokam kazdeho tymu existuje ve hre jen jednou a koruna se pri zabiti presouva i s drahokamy.
@@ -47,9 +50,6 @@ import java.util.UUID;
 final class CrownManager implements Listener {
 
     private static final double STRENGTH_PER_GEM = 3.0;
-    /** Vyska spodku koruny nad pasazerskym bodem hrace (v blocich pri velikosti 1). */
-    private static final float RING_LIFT = 0.41f;
-
     private final TeamsPlugin plugin;
     /** Klic stare verze, kdy byla koruna predmet. Ukliziji se zbytky. */
     private final NamespacedKey legacyCrownKey;
@@ -69,6 +69,7 @@ final class CrownManager implements Listener {
 
     void start() {
         plugin.getServer().getScheduler().runTaskTimer(plugin, this::sweep, 20L, 20L);
+        plugin.getServer().getScheduler().runTaskTimer(plugin, this::follow, 1L, 1L);
     }
 
     void shutdown() {
@@ -349,30 +350,48 @@ final class CrownManager implements Listener {
         }
     }
 
-    private Transformation transformation(Player p) {
+    private float scaleOf(Player p) {
         AttributeInstance scaleAttr = p.getAttribute(Attribute.SCALE);
-        float s = scaleAttr == null ? 1f : (float) scaleAttr.getValue();
-        return new Transformation(new Vector3f(0f, RING_LIFT * s, 0f), new AxisAngle4f(),
-                new Vector3f(s, s, s), new AxisAngle4f());
+        return scaleAttr == null ? 1f : (float) scaleAttr.getValue();
+    }
+
+    private Transformation transformation(Player p) {
+        float s = scaleOf(p);
+        return new Transformation(new Vector3f(), new AxisAngle4f(), new Vector3f(s, s, s), new AxisAngle4f());
+    }
+
+    /** Stred koruny: spodek prstence lezi tesne pod temenem hlavy, ve smeru pohledu hrace. */
+    private Location headLocation(Player p) {
+        Location l = p.getLocation();
+        l.setY(l.getY() + p.getBoundingBox().getHeight() + 0.515 * scaleOf(p));
+        l.setPitch(0f);
+        return l;
     }
 
     private void ensureDisplay(Player p, List<TeamType> gems) {
         UUID u = p.getUniqueId();
         String sig = signature(gems);
+        if (p.isInvisible()) {
+            removeDisplay(p);
+            return;
+        }
         Shown s = shown.get(u);
-        if (s != null && (!s.display().isValid() || !p.getPassengers().contains(s.display()))) {
+        if (s != null && (!s.display().isValid() || !s.display().getWorld().equals(p.getWorld()))) {
             s.display().remove();
             shown.remove(u);
             s = null;
         }
         if (s == null) {
-            ItemDisplay d = p.getWorld().spawn(p.getLocation(), ItemDisplay.class, e -> {
+            ItemDisplay d = p.getWorld().spawn(headLocation(p), ItemDisplay.class, e -> {
                 e.setPersistent(false);
                 e.setItemStack(displayItem(gems));
                 e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
                 e.setTransformation(transformation(p));
+                e.setBrightness(new Display.Brightness(15, 15));
+                e.setTeleportDuration(1);
             });
-            p.addPassenger(d);
+            // majitel svoji korunu z prvni osoby nevidi
+            p.hideEntity(plugin, d);
             shown.put(u, new Shown(d, sig));
             return;
         }
@@ -381,6 +400,17 @@ final class CrownManager implements Listener {
             shown.put(u, new Shown(s.display(), sig));
         }
         s.display().setTransformation(transformation(p));
+    }
+
+    /** Kazdy tick prenese koruny na hlavy jejich majitelu. */
+    private void follow() {
+        for (Map.Entry<UUID, Shown> en : shown.entrySet()) {
+            Player p = Bukkit.getPlayer(en.getKey());
+            ItemDisplay d = en.getValue().display();
+            if (p != null && d.isValid() && p.getWorld().equals(d.getWorld())) {
+                d.teleport(headLocation(p));
+            }
+        }
     }
 
     private void removeDisplay(Player p) {
