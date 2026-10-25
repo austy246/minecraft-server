@@ -7,3 +7,9 @@ samurai:
   cooldown-seconds: 60
   # Polomer oblasti kolem hrace, kam se muze teleportovat.
   radius: 3
+
+pack:
+  # Resource pack s korunami a drahokamy. Plugin ho posila hracum po pripojeni.
+  # Pri zmene packu zmen url (odkaz na konkretni commit) i sha1.
+  url: "https://raw.githubusercontent.com/austy246/minecraft-server/96848e75db7e2d39a12946200ceb3b8c98820066/resourcepack/teams-pack.zip"
+  sha1: "4a7bd040462c8a98a033527cb1fe19246df72a02"

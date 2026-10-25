@@ -21,6 +21,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -38,6 +39,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +78,9 @@ final class CrownManager implements Listener {
     void start() {
         plugin.getServer().getScheduler().runTaskTimer(plugin, this::sweep, 20L, 20L);
         plugin.getServer().getScheduler().runTaskTimer(plugin, this::follow, 1L, 1L);
+        for (Player p : plugin.getServer().getOnlinePlayers()) {
+            sendPack(p);
+        }
     }
 
     void shutdown() {
@@ -342,6 +347,31 @@ final class CrownManager implements Listener {
                 }
             }
         }
+    }
+
+    /**
+     * Pack posilame ze hry (ne pri pripojeni), protoze jen tak Paper spolehlive hlasi stav
+     * nacteni. Podle nej se koruna ukazuje jen hracum, ktere ji videt umeji.
+     */
+    private void sendPack(Player p) {
+        String url = plugin.getConfig().getString("pack.url", "");
+        String sha = plugin.getConfig().getString("pack.sha1", "");
+        if (url.isBlank() || sha.length() != 40) {
+            return;
+        }
+        byte[] hash = HexFormat.of().parseHex(sha);
+        p.setResourcePack(UUID.nameUUIDFromBytes(hash), url, hash,
+                Component.text("Koruny a drahokamy týmů"), false);
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (p.isOnline()) {
+                sendPack(p);
+            }
+        }, 20L);
     }
 
     @EventHandler
