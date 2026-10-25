@@ -67,11 +67,15 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
         getCommand("drahokam").setTabCompleter(this);
 
         checkPeriod();
+        cleanCrowns(data.migration() < 1);
+        data.setMigration(1);
+        data.save();
         for (Player p : getServer().getOnlinePlayers()) {
             playerReady(p);
         }
 
         getServer().getScheduler().runTaskTimer(this, this::checkPeriod, 1200L, 1200L);
+        getServer().getScheduler().runTaskTimer(this, () -> cleanCrowns(false), 1200L, 1200L);
         getServer().getScheduler().runTaskTimer(this, this::remindFrozen, 100L, 100L);
         perks.start();
         crowns.start();
@@ -144,6 +148,33 @@ public final class TeamsPlugin extends JavaPlugin implements TabExecutor {
         if (!first) {
             getServer().broadcast(Component.text("Nový měsíc! Týmy, koruny a hlasy byly resetovány. "
                     + "Vyber si tým příkazem /join team.", NamedTextColor.GOLD));
+        }
+    }
+
+    /**
+     * Prazdna koruna hrace, ktery neni kral, nema smysl a zmizi.
+     * Pri jednorazove migraci (po zmene pravidla o prehlasovani) se koruny clenu, ktere
+     * obsahuji jen drahokam jejich vlastniho tymu, presunou na krale tymu.
+     */
+    void cleanCrowns(boolean migrate) {
+        boolean changed = false;
+        for (UUID holder : data.crownHolders()) {
+            List<TeamType> gems = data.gems(holder);
+            TeamType team = data.teamOf(holder);
+            UUID king = team == null ? null : data.king(team);
+            if (gems == null || holder.equals(king)) {
+                continue;
+            }
+            if (gems.isEmpty()) {
+                data.removeCrown(holder);
+                changed = true;
+            } else if (migrate && king != null && gems.stream().allMatch(g -> g == team)) {
+                crowns.moveCrown(holder, king);
+                changed = true;
+            }
+        }
+        if (changed) {
+            data.save();
         }
     }
 

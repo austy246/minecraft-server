@@ -19,6 +19,7 @@ final class TeamData {
 
     private final File file;
     private String period;
+    private int migration;
     private final Map<UUID, TeamType> teams = new HashMap<>();
     private final Map<UUID, String> names = new HashMap<>();
     /** obet -> (tym zabijaku -> pocet) */
@@ -41,6 +42,7 @@ final class TeamData {
         }
         YamlConfiguration y = YamlConfiguration.loadConfiguration(file);
         period = y.getString("period");
+        migration = y.getInt("migration", 0);
         ConfigurationSection s = y.getConfigurationSection("teams");
         if (s != null) {
             for (String k : s.getKeys(false)) {
@@ -115,6 +117,7 @@ final class TeamData {
     void save() {
         YamlConfiguration y = new YamlConfiguration();
         y.set("period", period);
+        y.set("migration", migration);
         teams.forEach((u, t) -> y.set("teams." + u, t.id));
         names.forEach((u, n) -> y.set("names." + u, n));
         kills.forEach((u, m) -> m.forEach((t, c) -> y.set("kills." + u + "." + t.id, c)));
@@ -127,6 +130,14 @@ final class TeamData {
         } catch (IOException e) {
             throw new IllegalStateException("Nelze ulozit " + file, e);
         }
+    }
+
+    int migration() {
+        return migration;
+    }
+
+    void setMigration(int m) {
+        migration = m;
     }
 
     String period() {
