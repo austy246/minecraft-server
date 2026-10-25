@@ -55,6 +55,8 @@ import java.util.UUID;
 final class CrownManager implements Listener {
 
     private static final double STRENGTH_PER_GEM = 3.0;
+    /** O kolik je koruna pro majitele vys, aby mu z prvni osoby nezasahovala do pohledu (v blocich). */
+    private static final double OWNER_LIFT = 0.22;
     private final TeamsPlugin plugin;
     /** Klic stare verze, kdy byla koruna predmet. Ukliziji se zbytky. */
     private final NamespacedKey legacyCrownKey;
@@ -64,7 +66,8 @@ final class CrownManager implements Listener {
     /** Hraci, kteri maji nacteny resource pack (ostatni by videli chybejici model). */
     private final Set<UUID> packLoaded = new HashSet<>();
 
-    private record Shown(ItemDisplay display, String signature) {
+    /** display = koruna pro ostatni, own = zvysena kopie jen pro majitele (aby mu neprekazela v pohledu). */
+    private record Shown(ItemDisplay display, ItemDisplay own, String signature) {
     }
 
     CrownManager(TeamsPlugin plugin) {
@@ -82,6 +85,7 @@ final class CrownManager implements Listener {
     void shutdown() {
         for (Shown s : shown.values()) {
             s.display().remove();
+            s.own().remove();
         }
         shown.clear();
     }
@@ -333,16 +337,21 @@ final class CrownManager implements Listener {
         boolean showToAll = plugin.getConfig().getBoolean("crown.show-to-all", true);
         for (Map.Entry<UUID, Shown> en : shown.entrySet()) {
             ItemDisplay d = en.getValue().display();
+            ItemDisplay own = en.getValue().own();
             for (Player viewer : plugin.getServer().getOnlinePlayers()) {
-                boolean want = !viewer.getUniqueId().equals(en.getKey())
-                        && (showToAll || packLoaded.contains(viewer.getUniqueId()));
-                if (viewer.canSee(d) != want) {
-                    if (want) {
-                        viewer.showEntity(plugin, d);
-                    } else {
-                        viewer.hideEntity(plugin, d);
-                    }
-                }
+                boolean isOwner = viewer.getUniqueId().equals(en.getKey());
+                setVisible(viewer, d, !isOwner && (showToAll || packLoaded.contains(viewer.getUniqueId())));
+                setVisible(viewer, own, isOwner);
+            }
+        }
+    }
+
+    private void setVisible(Player viewer, ItemDisplay d, boolean want) {
+        if (viewer.canSee(d) != want) {
+            if (want) {
+                viewer.showEntity(plugin, d);
+            } else {
+                viewer.hideEntity(plugin, d);
             }
         }
     }
@@ -480,11 +489,22 @@ final class CrownManager implements Listener {
     }
 
     /** Stred koruny: spodek prstence lezi tesne pod temenem hlavy, ve smeru pohledu hrace. */
-    private Location headLocation(Player p) {
+    private Location headLocation(Player p, double lift) {
         Location l = p.getLocation();
-        l.setY(l.getY() + p.getBoundingBox().getHeight() + 0.515 * scaleOf(p));
+        l.setY(l.getY() + p.getBoundingBox().getHeight() + (0.515 + lift) * scaleOf(p));
         l.setPitch(0f);
         return l;
+    }
+
+    private ItemDisplay spawnCrown(Player p, List<TeamType> gems, double lift) {
+        return p.getWorld().spawn(headLocation(p, lift), ItemDisplay.class, e -> {
+            e.setPersistent(false);
+            e.setItemStack(displayItem(gems));
+            e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+            e.setTransformation(transformation(p));
+            e.setBrightness(new Display.Brightness(15, 15));
+            e.setTeleportDuration(1);
+        });
     }
 
     private void ensureDisplay(Player p, List<TeamType> gems) {
@@ -495,29 +515,25 @@ final class CrownManager implements Listener {
             return;
         }
         Shown s = shown.get(u);
-        if (s != null && (!s.display().isValid() || !s.display().getWorld().equals(p.getWorld()))) {
+        if (s != null && (!s.display().isValid() || !s.own().isValid()
+                || !s.display().getWorld().equals(p.getWorld()))) {
             s.display().remove();
+            s.own().remove();
             shown.remove(u);
             s = null;
         }
         if (s == null) {
-            ItemDisplay d = p.getWorld().spawn(headLocation(p), ItemDisplay.class, e -> {
-                e.setPersistent(false);
-                e.setItemStack(displayItem(gems));
-                e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-                e.setTransformation(transformation(p));
-                e.setBrightness(new Display.Brightness(15, 15));
-                e.setTeleportDuration(1);
-            });
-            shown.put(u, new Shown(d, sig));
+            shown.put(u, new Shown(spawnCrown(p, gems, 0.0), spawnCrown(p, gems, OWNER_LIFT), sig));
             updateVisibility();
             return;
         }
         if (!sig.equals(s.signature())) {
             s.display().setItemStack(displayItem(gems));
-            shown.put(u, new Shown(s.display(), sig));
+            s.own().setItemStack(displayItem(gems));
+            shown.put(u, new Shown(s.display(), s.own(), sig));
         }
         s.display().setTransformation(transformation(p));
+        s.own().setTransformation(transformation(p));
     }
 
     /** Kazdy tick prenese koruny na hlavy jejich majitelu. */
@@ -525,8 +541,10 @@ final class CrownManager implements Listener {
         for (Map.Entry<UUID, Shown> en : shown.entrySet()) {
             Player p = Bukkit.getPlayer(en.getKey());
             ItemDisplay d = en.getValue().display();
-            if (p != null && d.isValid() && p.getWorld().equals(d.getWorld())) {
-                d.teleport(headLocation(p));
+            ItemDisplay own = en.getValue().own();
+            if (p != null && d.isValid() && own.isValid() && p.getWorld().equals(d.getWorld())) {
+                d.teleport(headLocation(p, 0.0));
+                own.teleport(headLocation(p, OWNER_LIFT));
             }
         }
     }
@@ -535,6 +553,7 @@ final class CrownManager implements Listener {
         Shown s = shown.remove(p.getUniqueId());
         if (s != null) {
             s.display().remove();
+            s.own().remove();
         }
     }
 
